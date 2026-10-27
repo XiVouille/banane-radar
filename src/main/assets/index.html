@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14130e">
+<title>Banane Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: sticky top bar + tabs, single column of video cards, bottom-sheet settings */
+:root{
+  --bg:#14130e; --surface:#1e1c14; --line:#34311f; --fg:#f4f1e1; --muted:#a29d84;
+  --accent:#ffd21f; --accent-ink:#1a1600; --danger:#ff7a59;
+  --display:"Bricolage Grotesque","Arial Black",system-ui,sans-serif;
+  --body:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root{--bg:#faf7e8;--surface:#fffdf3;--line:#e4dfc2;--fg:#1d1b10;--muted:#6f6a50;--accent:#f2b800;--accent-ink:#1a1600;--danger:#c4421f;color-scheme:light}
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 var(--body);-webkit-tap-highlight-color:transparent}
+body{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 calc(40px + env(safe-area-inset-bottom,0px))}
+.wrap{max-width:640px;margin:0 auto}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:8px;border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font:800 1.45rem/1 var(--display);margin:0;letter-spacing:-.02em}
+h1 span{color:var(--accent)}
+.icon-btn{background:none;border:1px solid var(--line);color:var(--fg);border-radius:10px;padding:8px 12px;font:500 .85rem var(--body);cursor:pointer}
+.tabs{display:flex;gap:8px;margin-top:12px}
+.tab{flex:1;background:var(--surface);border:1px solid var(--line);color:var(--muted);border-radius:10px;padding:10px 8px;font:700 .9rem var(--body);cursor:pointer}
+.tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.tab b{font-variant-numeric:tabular-nums}
+.tools{display:flex;gap:8px;align-items:center;margin:14px 0 6px;flex-wrap:wrap}
+.chip{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:6px 12px;font:500 .82rem var(--body);cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--accent);color:var(--fg);background:var(--surface)}
+.status{color:var(--muted);font-size:.85rem;margin:6px 0 12px;min-height:1.2em}
+.list{display:grid;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.thumb{display:block;position:relative;aspect-ratio:16/9;background:#000}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.dur{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.82);color:#fff;border-radius:6px;padding:2px 7px;font:700 .75rem var(--body);font-variant-numeric:tabular-nums}
+.info{padding:12px 14px 6px}
+.info a{color:var(--fg);text-decoration:none;font:700 1rem/1.3 var(--body);display:block;overflow-wrap:anywhere}
+.meta{color:var(--muted);font-size:.8rem;margin-top:4px;font-variant-numeric:tabular-nums}
+.actions{display:flex;gap:8px;padding:8px 14px 14px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:10px;padding:9px 14px;font:700 .85rem var(--body);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.warn{color:var(--danger)}
+.reason{display:inline-block;font:700 .72rem var(--body);letter-spacing:.05em;text-transform:uppercase;color:var(--accent);margin-top:4px}
+.empty{border:1px dashed var(--line);border-radius:14px;padding:28px 18px;text-align:center;color:var(--muted)}
+.more{width:100%;margin-top:14px;padding:12px}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* settings sheet */
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center}
+.panel{background:var(--bg);border-top:1px solid var(--line);border-radius:18px 18px 0 0;width:100%;max-width:640px;max-height:90%;overflow:auto;padding:18px max(16px,env(safe-area-inset-left,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.panel h2{font:800 1.2rem var(--display);margin:0 0 4px}
+.panel p{color:var(--muted);font-size:.85rem;margin:4px 0 10px}
+label{display:block;font:700 .8rem var(--body);margin:14px 0 6px}
+input[type=text],input[type=password],select{width:100%;background:var(--surface);border:1px solid var(--line);color:var(--fg);border-radius:10px;padding:11px 12px;font:16px var(--body)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+hr{border:0;border-top:1px solid var(--line);margin:18px 0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);border-radius:12px;padding:10px 14px;display:flex;gap:14px;align-items:center;z-index:30;font:500 .9rem var(--body);max-width:calc(100% - 32px)}
+.toast button{background:none;border:0;color:var(--bg);font:800 .9rem var(--body);text-decoration:underline;cursor:pointer;padding:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="top">
+    <h1>Banane <span>Radar</span></h1>
+    <button class="icon-btn" id="openSettings" aria-label="Réglages" style="display:flex;padding:9px"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65A.49.49 0 0 0 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg></button>
+  </div>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tabTodo" aria-selected="true">À voir <b id="nTodo">0</b></button>
+    <button class="tab" role="tab" id="tabHidden" aria-selected="false">Masquées <b id="nHidden">0</b></button>
+  </div>
+</header>
+
+<div class="tools" id="tools">
+  <button class="chip" data-sort="recent" aria-pressed="true">Récentes</button>
+  <button class="chip" data-sort="random" aria-pressed="false">Surprise</button>
+  <button class="chip" data-sort="views" aria-pressed="false">Populaires</button>
+</div>
+<div class="status" id="status" aria-live="polite"></div>
+<main class="list" id="list"></main>
+<button class="btn more" id="more" hidden>Voir plus</button>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="panel" role="dialog" aria-label="Réglages">
+    <h2>Réglages</h2>
+    <p>Tout reste dans ton navigateur : clé, vidéos masquées, réglages.</p>
+
+    <label for="key">Clé API YouTube Data v3</label>
+    <input type="password" id="key" autocomplete="off" placeholder="AIza…">
+    <label for="handle">Chaîne</label>
+    <input type="text" id="handle" autocapitalize="off" placeholder="@WankilFr">
+    <label for="minDur">Durée minimale</label>
+    <select id="minDur">
+      <option value="0">Toutes les vidéos</option>
+      <option value="61">Sans les Shorts (plus d'1 min)</option>
+      <option value="600">Plus de 10 min</option>
+      <option value="1800">Plus de 30 min</option>
+    </select>
+    <div class="row">
+      <button class="btn primary" id="save">Enregistrer et actualiser</button>
+      <button class="btn" id="close">Fermer</button>
+    </div>
+
+    <hr>
+    <h2>Déjà vu sur YouTube</h2>
+    <p>YouTube ne donne pas ton historique aux applis. Pour marquer d'un coup tout ce que tu as vu : Google Takeout → YouTube → Historique, format JSON, puis choisis le fichier watch-history.json ici. Seules les vidéos de cette chaîne sont gardées.</p>
+    <input type="file" id="takeout" accept=".json,.html,application/json,text/html">
+
+    <hr>
+    <h2>Sauvegarde</h2>
+    <p>Exporte ta liste de vidéos masquées pour la garder ou la changer de téléphone.</p>
+    <div class="row">
+      <button class="btn" id="export">Exporter</button>
+      <button class="btn" id="importBtn">Importer</button>
+      <input type="file" id="importFile" accept="application/json" hidden>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+  var PAGE = 30;
+  var $ = function(id){return document.getElementById(id)};
+  function load(k, d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+  function save(k, v){try{localStorage.setItem(k, JSON.stringify(v))}catch(e){}}
+
+  var S = {
+    key: load('wk_key',''), handle: load('wk_handle','@WankilFr'), minDur: load('wk_minDur',61),
+    videos: load('wk_videos',[]), uploads: load('wk_uploads',''), hidden: load('wk_hidden',{}),
+    sort: load('wk_sort','recent'), tab:'todo', shown: PAGE, seed: Math.random()
+  };
+
+  function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+  function fmtDur(s){var h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;
+    return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0')}
+  function isoSec(d){var m=/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(d||'');return m?(+m[1]||0)*3600+(+m[2]||0)*60+(+m[3]||0):0}
+  function fmtViews(n){return n>=1e6?(n/1e6).toFixed(1).replace('.0','')+' M':n>=1e3?Math.round(n/1e3)+' k':String(n)}
+  function ago(iso){var d=Math.floor((Date.now()-new Date(iso))/864e5);
+    if(d<1)return "aujourd'hui"; if(d<30)return 'il y a '+d+' j'; if(d<365)return 'il y a '+Math.floor(d/30)+' mois';
+    return 'il y a '+Math.floor(d/365)+' an'+(d>=730?'s':'')}
+  function seeded(id){var h=0,s=id+S.seed;for(var i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))|0}return (h>>>0)/4294967296}
+
+  var toastTimer;
+  function toast(msg, undo){
+    var t=$('toast'); t.innerHTML='<span>'+esc(msg)+'</span>'; t.hidden=false;
+    if(undo){var b=document.createElement('button');b.textContent='Annuler';b.onclick=function(){undo();t.hidden=true};t.appendChild(b)}
+    clearTimeout(toastTimer); toastTimer=setTimeout(function(){t.hidden=true},undo?6000:3500);
+  }
+  function setStatus(m){$('status').textContent=m||''}
+
+  /* ---------- API ---------- */
+  function api(path, params){
+    var p=new URLSearchParams(Object.assign({key:S.key},params));
+    return fetch('https://www.googleapis.com/youtube/v3/'+path+'?'+p).then(function(r){
+      return r.json().then(function(j){
+        if(!r.ok){var m=(j.error&&j.error.message)||('Erreur '+r.status);throw new Error(m.replace(/<[^>]+>/g,''))}
+        return j;
+      });
+    });
+  }
+  function resolveUploads(){
+    var h=S.handle.trim(); if(h[0]!=='@')h='@'+h;
+    return api('channels',{part:'contentDetails',forHandle:h}).then(function(j){
+      if(!j.items||!j.items.length)throw new Error('Chaîne introuvable : '+h);
+      S.uploads=j.items[0].contentDetails.relatedPlaylists.uploads; save('wk_uploads',S.uploads);
+    });
+  }
+  function fetchIds(){
+    var known={}; S.videos.forEach(function(v){known[v.id]=1});
+    var fresh=[], first=true;
+    function page(tok){
+      return api('playlistItems',{part:'contentDetails',playlistId:S.uploads,maxResults:50,pageToken:tok||''}).then(function(j){
+        var items=j.items||[], newCount=0;
+        items.forEach(function(it){var id=it.contentDetails.videoId; if(!known[id]){known[id]=1;fresh.push({id:id,at:it.contentDetails.videoPublishedAt});newCount++}});
+        setStatus('Récupération… '+(S.videos.length+fresh.length)+' vidéos');
+        var stop = S.videos.length>0 && newCount===0 && !first;
+        first=false;
+        if(j.nextPageToken && !stop) return page(j.nextPageToken);
+        return fresh;
+      });
+    }
+    return page('');
+  }
+  function fetchDetails(list){
+    var out=[], i=0;
+    function batch(){
+      if(i>=list.length)return Promise.resolve(out);
+      var chunk=list.slice(i,i+50); i+=50;
+      return api('videos',{part:'snippet,contentDetails,statistics',id:chunk.map(function(c){return c.id}).join(','),maxResults:50}).then(function(j){
+        (j.items||[]).forEach(function(v){
+          out.push({id:v.id,t:v.snippet.title,at:v.snippet.publishedAt,d:isoSec(v.contentDetails.duration),v:+(v.statistics&&v.statistics.viewCount)||0,live:v.snippet.liveBroadcastContent||'none'});
+        });
+        return batch();
+      });
+    }
+    return batch();
+  }
+  function sync(){
+    if(!S.key){openSheet();setStatus('Ajoute ta clé API pour charger les vidéos.');return Promise.resolve()}
+    setStatus('Connexion à YouTube…');
+    var p = S.uploads ? Promise.resolve() : resolveUploads();
+    return p.then(fetchIds).then(fetchDetails).then(function(newVids){
+      var map={}; S.videos.concat(newVids).forEach(function(v){map[v.id]=v});
+      S.videos=Object.keys(map).map(function(k){return map[k]}).filter(function(v){return v.live!=='upcoming'});
+      save('wk_videos',S.videos);
+      setStatus(newVids.length?newVids.length+' nouvelle'+(newVids.length>1?'s':'')+' vidéo'+(newVids.length>1?'s':''):'Liste à jour.');
+      render();
+    }).catch(function(e){setStatus('Erreur : '+e.message)});
+  }
+
+  /* ---------- Rendering ---------- */
+  function todoList(){
+    var l=S.videos.filter(function(v){return !S.hidden[v.id] && v.d>=S.minDur});
+    if(S.sort==='recent') l.sort(function(a,b){return a.at<b.at?1:-1});
+    else if(S.sort==='views') l.sort(function(a,b){return b.v-a.v});
+    else l.sort(function(a,b){return seeded(a.id)-seeded(b.id)});
+    return l;
+  }
+  function hiddenList(){
+    var byId={}; S.videos.forEach(function(v){byId[v.id]=v});
+    return Object.keys(S.hidden).map(function(id){
+      var v=byId[id]; return {id:id,t:v?v.t:'Vidéo '+id,at:v?v.at:null,d:v?v.d:0,v:v?v.v:0,known:!!v,h:S.hidden[id]};
+    }).sort(function(a,b){return b.h.t-a.h.t});
+  }
+  function card(v, inHidden){
+    var url='https://www.youtube.com/watch?v='+v.id;
+    var meta=[]; if(v.at)meta.push(ago(v.at)); if(v.v)meta.push(fmtViews(v.v)+' vues');
+    var acts = inHidden
+      ? '<button class="btn primary" data-act="restore" data-id="'+v.id+'">Restaurer</button>'
+      : '<button class="btn" data-act="seen" data-id="'+v.id+'">Déjà vu</button><button class="btn warn" data-act="skip" data-id="'+v.id+'">Pas envie</button>';
+    return '<article class="card">'+
+      '<a class="thumb" href="'+url+'" target="_blank" rel="noopener"><img loading="lazy" alt="" src="https://i.ytimg.com/vi/'+v.id+'/mqdefault.jpg">'+(v.d?'<span class="dur">'+fmtDur(v.d)+'</span>':'')+'</a>'+
+      '<div class="info"><a href="'+url+'" target="_blank" rel="noopener">'+esc(v.t)+'</a>'+
+      '<div class="meta">'+esc(meta.join(' · '))+'</div>'+
+      (inHidden?'<span class="reason">'+(v.h.r==='seen'?'Déjà vue':'Pas envie')+'</span>':'')+'</div>'+
+      '<div class="actions">'+acts+'</div></article>';
+  }
+  function render(){
+    var todo=todoList(), hid=hiddenList();
+    $('nTodo').textContent=todo.length; $('nHidden').textContent=hid.length;
+    $('tabTodo').setAttribute('aria-selected',S.tab==='todo'); $('tabHidden').setAttribute('aria-selected',S.tab==='hidden');
+    $('tools').hidden = S.tab!=='todo';
+    Array.prototype.forEach.call(document.querySelectorAll('[data-sort]'),function(c){c.setAttribute('aria-pressed',c.dataset.sort===S.sort)});
+    var list = S.tab==='todo'?todo:hid, el=$('list');
+    if(!list.length){
+      el.innerHTML = S.tab==='todo'
+        ? '<div class="empty">'+(S.videos.length?'Tu as tout vu ou masqué. Reviens après la prochaine sortie.':'Aucune vidéo chargée pour le moment.')+'</div>'
+        : '<div class="empty">Rien de masqué. Les vidéos que tu écartes apparaîtront ici, avec un bouton pour les restaurer.</div>';
+      $('more').hidden=true; return;
+    }
+    el.innerHTML = list.slice(0,S.shown).map(function(v){return card(v,S.tab==='hidden')}).join('');
+    $('more').hidden = list.length<=S.shown;
+    $('more').textContent='Voir plus ('+(list.length-S.shown)+')';
+  }
+
+  function hide(id, r){
+    S.hidden[id]={r:r,t:Date.now()}; save('wk_hidden',S.hidden); render();
+    toast(r==='seen'?'Marquée comme vue':'Masquée',function(){delete S.hidden[id];save('wk_hidden',S.hidden);render()});
+  }
+  $('list').addEventListener('click',function(e){
+    var b=e.target.closest('button[data-act]'); if(!b)return;
+    var id=b.dataset.id, a=b.dataset.act;
+    if(a==='restore'){delete S.hidden[id];save('wk_hidden',S.hidden);render();toast('Remise dans « À voir »')}
+    else hide(id, a==='seen'?'seen':'skip');
+  });
+  $('tabTodo').onclick=function(){S.tab='todo';S.shown=PAGE;render()};
+  $('tabHidden').onclick=function(){S.tab='hidden';S.shown=PAGE;render()};
+  $('more').onclick=function(){S.shown+=PAGE;render()};
+  Array.prototype.forEach.call(document.querySelectorAll('[data-sort]'),function(c){
+    c.onclick=function(){S.sort=c.dataset.sort;if(S.sort==='random')S.seed=Math.random();save('wk_sort',S.sort);S.shown=PAGE;render()};
+  });
+
+  /* ---------- Settings ---------- */
+  function openSheet(){$('key').value=S.key;$('handle').value=S.handle;$('minDur').value=String(S.minDur);$('sheet').hidden=false}
+  function closeSheet(){$('sheet').hidden=true}
+  $('openSettings').onclick=openSheet; $('close').onclick=closeSheet;
+  $('sheet').addEventListener('click',function(e){if(e.target===$('sheet'))closeSheet()});
+  $('save').onclick=function(){
+    var newHandle=$('handle').value.trim()||'@WankilFr', changed=newHandle!==S.handle||$('key').value.trim()!==S.key&&false;
+    if(newHandle!==S.handle){S.uploads='';S.videos=[];save('wk_uploads','');save('wk_videos',[])}
+    S.key=$('key').value.trim(); S.handle=newHandle; S.minDur=+$('minDur').value;
+    save('wk_key',S.key);save('wk_handle',S.handle);save('wk_minDur',S.minDur);
+    closeSheet(); S.shown=PAGE; render(); sync();
+  };
+
+  function readFile(input, cb){var f=input.files&&input.files[0]; if(!f)return; var r=new FileReader(); r.onload=function(){cb(String(r.result))}; r.readAsText(f); input.value=''}
+  $('takeout').onchange=function(){
+    readFile(this,function(txt){
+      var ids={}, re=/watch\?v=([\w-]{11})/g, m;
+      while((m=re.exec(txt)))ids[m[1]]=1;
+      var chan={}; S.videos.forEach(function(v){chan[v.id]=1});
+      var n=0; Object.keys(ids).forEach(function(id){if(chan[id]&&!S.hidden[id]){S.hidden[id]={r:'seen',t:Date.now()};n++}});
+      save('wk_hidden',S.hidden); render(); closeSheet();
+      toast(S.videos.length?n+' vidéo'+(n>1?'s':'')+' marquée'+(n>1?'s':'')+' comme vue'+(n>1?'s':''):'Charge d\'abord les vidéos de la chaîne, puis réimporte.');
+    });
+  };
+  $('export').onclick=function(){
+    if(window.AndroidBridge&&window.AndroidBridge.share){window.AndroidBridge.share(JSON.stringify({hidden:S.hidden},null,1),'banane-radar-masquees.json');return}
+    var blob=new Blob([JSON.stringify({hidden:S.hidden},null,1)],{type:'application/json'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='banane-radar-masquees.json';
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+  $('importBtn').onclick=function(){$('importFile').click()};
+  $('importFile').onchange=function(){
+    readFile(this,function(txt){
+      try{var j=JSON.parse(txt), h=j.hidden||{}, n=0;
+        Object.keys(h).forEach(function(id){if(!S.hidden[id]){S.hidden[id]=h[id];n++}});
+        save('wk_hidden',S.hidden); render(); closeSheet(); toast(n+' vidéo(s) importée(s)');
+      }catch(e){toast('Fichier invalide')}
+    });
+  };
+
+  render();
+  if(S.key){sync()}else{setStatus('Ajoute ta clé API dans Réglages pour charger la chaîne.');openSheet()}
+})();
+</script>
+</body>
+</html>
