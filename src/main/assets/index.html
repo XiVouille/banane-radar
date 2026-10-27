@@ -106,6 +106,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
       <option value="600">Plus de 10 min</option>
       <option value="1800">Plus de 30 min</option>
     </select>
+    <label style="display:flex;gap:10px;align-items:center;font-weight:500"><input type="checkbox" id="autoSeen"> Marquer comme vue quand je l'ouvre</label>
     <div class="row">
       <button class="btn primary" id="save">Enregistrer et actualiser</button>
       <button class="btn" id="close">Fermer</button>
@@ -138,7 +139,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
   var S = {
     key: load('wk_key',''), handle: load('wk_handle','@WankilFr'), minDur: load('wk_minDur',61),
     videos: load('wk_videos',[]), uploads: load('wk_uploads',''), hidden: load('wk_hidden',{}),
-    sort: load('wk_sort','recent'), tab:'todo', shown: PAGE, seed: Math.random()
+    sort: load('wk_sort','recent'), autoSeen: load('wk_autoSeen',true), tab:'todo', shown: PAGE, seed: Math.random()
   };
 
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
@@ -238,10 +239,10 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
     var meta=[]; if(v.at)meta.push(ago(v.at)); if(v.v)meta.push(fmtViews(v.v)+' vues');
     var acts = inHidden
       ? '<button class="btn primary" data-act="restore" data-id="'+v.id+'">Restaurer</button>'
-      : '<button class="btn" data-act="seen" data-id="'+v.id+'">Déjà vu</button><button class="btn warn" data-act="skip" data-id="'+v.id+'">Pas envie</button>';
+      : '<button class="btn" data-act="seen" data-id="'+v.id+'">Déjà vu</button><button class="btn warn" data-act="skip" data-id="'+v.id+'">Pas envie</button><button class="btn" data-act="before" data-id="'+v.id+'">Tout vu jusqu\'ici</button>';
     return '<article class="card">'+
-      '<a class="thumb" href="'+url+'" target="_blank" rel="noopener"><img loading="lazy" alt="" src="https://i.ytimg.com/vi/'+v.id+'/mqdefault.jpg">'+(v.d?'<span class="dur">'+fmtDur(v.d)+'</span>':'')+'</a>'+
-      '<div class="info"><a href="'+url+'" target="_blank" rel="noopener">'+esc(v.t)+'</a>'+
+      '<a class="thumb open" data-id="'+v.id+'" href="'+url+'" target="_blank" rel="noopener"><img loading="lazy" alt="" src="https://i.ytimg.com/vi/'+v.id+'/mqdefault.jpg">'+(v.d?'<span class="dur">'+fmtDur(v.d)+'</span>':'')+'</a>'+
+      '<div class="info"><a class="open" data-id="'+v.id+'" href="'+url+'" target="_blank" rel="noopener">'+esc(v.t)+'</a>'+
       '<div class="meta">'+esc(meta.join(' · '))+'</div>'+
       (inHidden?'<span class="reason">'+(v.h.r==='seen'?'Déjà vue':'Pas envie')+'</span>':'')+'</div>'+
       '<div class="actions">'+acts+'</div></article>';
@@ -268,9 +269,18 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
     S.hidden[id]={r:r,t:Date.now()}; save('wk_hidden',S.hidden); render();
     toast(r==='seen'?'Marquée comme vue':'Masquée',function(){delete S.hidden[id];save('wk_hidden',S.hidden);render()});
   }
+  function hideBefore(id){
+    var base=S.videos.filter(function(v){return v.id===id})[0]; if(!base)return;
+    var ids=S.videos.filter(function(v){return v.at<=base.at&&!S.hidden[v.id]}).map(function(v){return v.id});
+    ids.forEach(function(i){S.hidden[i]={r:'seen',t:Date.now()}}); save('wk_hidden',S.hidden); render();
+    toast(ids.length+' vidéo'+(ids.length>1?'s':'')+' marquée'+(ids.length>1?'s':'')+' comme vue'+(ids.length>1?'s':''),function(){ids.forEach(function(i){delete S.hidden[i]});save('wk_hidden',S.hidden);render()});
+  }
   $('list').addEventListener('click',function(e){
+    var lk=e.target.closest('a.open');
+    if(lk&&S.tab==='todo'&&S.autoSeen){var oid=lk.dataset.id;setTimeout(function(){S.hidden[oid]={r:'seen',t:Date.now()};save('wk_hidden',S.hidden);render()},400);return}
     var b=e.target.closest('button[data-act]'); if(!b)return;
     var id=b.dataset.id, a=b.dataset.act;
+    if(a==='before'){hideBefore(id);return}
     if(a==='restore'){delete S.hidden[id];save('wk_hidden',S.hidden);render();toast('Remise dans « À voir »')}
     else hide(id, a==='seen'?'seen':'skip');
   });
@@ -282,14 +292,14 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
   });
 
   /* ---------- Settings ---------- */
-  function openSheet(){$('key').value=S.key;$('handle').value=S.handle;$('minDur').value=String(S.minDur);$('sheet').hidden=false}
+  function openSheet(){$('key').value=S.key;$('handle').value=S.handle;$('minDur').value=String(S.minDur);$('autoSeen').checked=!!S.autoSeen;$('sheet').hidden=false}
   function closeSheet(){$('sheet').hidden=true}
   $('openSettings').onclick=openSheet; $('close').onclick=closeSheet;
   $('sheet').addEventListener('click',function(e){if(e.target===$('sheet'))closeSheet()});
   $('save').onclick=function(){
     var newHandle=$('handle').value.trim()||'@WankilFr', changed=newHandle!==S.handle||$('key').value.trim()!==S.key&&false;
     if(newHandle!==S.handle){S.uploads='';S.videos=[];save('wk_uploads','');save('wk_videos',[])}
-    S.key=$('key').value.trim(); S.handle=newHandle; S.minDur=+$('minDur').value;
+    S.key=$('key').value.trim(); S.handle=newHandle; S.minDur=+$('minDur').value;S.autoSeen=$('autoSeen').checked;save('wk_autoSeen',S.autoSeen);
     save('wk_key',S.key);save('wk_handle',S.handle);save('wk_minDur',S.minDur);
     closeSheet(); S.shown=PAGE; render(); sync();
   };
