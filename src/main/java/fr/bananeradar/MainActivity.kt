@@ -58,7 +58,8 @@ class MainActivity : Activity() {
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 if (request.url.host == "appassets.androidplatform.net") return false
-                startActivity(Intent(Intent.ACTION_VIEW, request.url))
+                val open = Intent(Intent.ACTION_VIEW, request.url)
+                startActivity(Intent.createChooser(open, "Ouvrir avec"))
                 return true
             }
         }

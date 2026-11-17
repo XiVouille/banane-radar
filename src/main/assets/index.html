@@ -125,6 +125,9 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
       <button class="btn" id="importBtn">Importer</button>
       <input type="file" id="importFile" accept="application/json" hidden>
     </div>
+    <label for="importText">Importer depuis du texte</label>
+    <textarea id="importText" rows="4" placeholder="Colle ici le texte exporté" style="width:100%;background:var(--surface);border:1px solid var(--line);color:var(--fg);border-radius:10px;padding:11px 12px;font:14px var(--body)"></textarea>
+    <div class="row"><button class="btn primary" id="importTextBtn">Importer ce texte</button></div>
   </div>
 </div>
 <div class="toast" id="toast" hidden></div>
@@ -322,14 +325,14 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
     document.body.appendChild(a); a.click(); a.remove();
   };
   $('importBtn').onclick=function(){$('importFile').click()};
-  $('importFile').onchange=function(){
-    readFile(this,function(txt){
-      try{var j=JSON.parse(txt), h=j.hidden||{}, n=0;
-        Object.keys(h).forEach(function(id){if(!S.hidden[id]){S.hidden[id]=h[id];n++}});
-        save('wk_hidden',S.hidden); render(); closeSheet(); toast(n+' vidéo(s) importée(s)');
-      }catch(e){toast('Fichier invalide')}
-    });
-  };
+  function importJson(txt){
+    try{var j=JSON.parse(txt), h=j.hidden||{}, n=0;
+      Object.keys(h).forEach(function(id){if(!S.hidden[id]){S.hidden[id]=h[id];n++}});
+      save('wk_hidden',S.hidden); render(); closeSheet(); toast(n+' vidéo(s) importée(s)');
+    }catch(e){toast('Texte invalide : colle-le en entier')}
+  }
+  $('importFile').onchange=function(){readFile(this,importJson)};
+  $('importTextBtn').onclick=function(){importJson($('importText').value.trim());$('importText').value=''};
 
   render();
   if(S.key){sync()}else{setStatus('Ajoute ta clé API dans Réglages pour charger la chaîne.');openSheet()}
