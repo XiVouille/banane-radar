@@ -22,6 +22,32 @@ class MainActivity : Activity() {
 
     inner class Bridge {
         @JavascriptInterface
+        fun openIn(appName: String, url: String): Boolean {
+            val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            val pkg = packageManager.queryIntentActivities(launcher, 0)
+                .map { it.activityInfo.packageName to it.loadLabel(packageManager).toString() }
+                .firstOrNull { it.second.contains(appName, ignoreCase = true) }
+                ?.first ?: return false
+            val view = Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage(pkg)
+            try {
+                startActivity(view)
+                return true
+            } catch (e: Exception) {
+            }
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, url)
+                setPackage(pkg)
+            }
+            try {
+                startActivity(send)
+                return true
+            } catch (e: Exception) {
+            }
+            return false
+        }
+
+        @JavascriptInterface
         fun share(text: String, name: String) {
             val send = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
