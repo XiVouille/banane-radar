@@ -107,6 +107,15 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
       <option value="1800">Plus de 30 min</option>
     </select>
     <label style="display:flex;gap:10px;align-items:center;font-weight:500"><input type="checkbox" id="autoSeen"> Marquer comme vue quand je l'ouvre</label>
+    <label for="openMode">Ouvrir les vidéos avec</label>
+    <select id="openMode">
+      <option value="app">App installée (nom ci-dessous)</option>
+      <option value="send">Menu de partage Android</option>
+      <option value="link">Lien YouTube (app par défaut)</option>
+      <option value="custom">Adresse personnalisée</option>
+    </select>
+    <input type="text" id="openApp" autocapitalize="off" placeholder="ViewTube" style="margin-top:8px">
+    <input type="text" id="openTpl" autocapitalize="off" placeholder="https://monsite/watch?v={id}" style="margin-top:8px">
     <div class="row">
       <button class="btn primary" id="save">Enregistrer et actualiser</button>
       <button class="btn" id="close">Fermer</button>
@@ -142,9 +151,10 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
   var S = {
     key: load('wk_key',''), handle: load('wk_handle','@WankilFr'), minDur: load('wk_minDur',61),
     videos: load('wk_videos',[]), uploads: load('wk_uploads',''), hidden: load('wk_hidden',{}),
-    sort: load('wk_sort','recent'), autoSeen: load('wk_autoSeen',true), tab:'todo', shown: PAGE, seed: Math.random()
+    sort: load('wk_sort','recent'), autoSeen: load('wk_autoSeen',true), openMode: load('wk_openMode','app'), openApp: load('wk_openApp','ViewTube'), openTpl: load('wk_openTpl','https://www.youtube.com/watch?v={id}'), tab:'todo', shown: PAGE, seed: Math.random()
   };
 
+  function videoUrl(id){return S.openMode==='custom'&&S.openTpl?S.openTpl.replace('{id}',id):'https://www.youtube.com/watch?v='+id}
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
   function fmtDur(s){var h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;
     return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0')}
@@ -220,7 +230,11 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
       save('wk_videos',S.videos);
       setStatus(newVids.length?newVids.length+' nouvelle'+(newVids.length>1?'s':'')+' vidéo'+(newVids.length>1?'s':''):'Liste à jour.');
       render();
-    }).catch(function(e){setStatus('Erreur : '+e.message)});
+    }).catch(function(e){
+      var m=e&&e.message||String(e);
+      if(/failed to fetch|networkerror|load failed/i.test(m))m="impossible de joindre YouTube. Vérifie ta connexion internet et utilise l'app installée (pas le fichier HTML ouvert dans un navigateur).";
+      setStatus('Erreur : '+m);
+    });
   }
 
   /* ---------- Rendering ---------- */
@@ -238,7 +252,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
     }).sort(function(a,b){return b.h.t-a.h.t});
   }
   function card(v, inHidden){
-    var url='https://www.youtube.com/watch?v='+v.id;
+    var url=videoUrl(v.id);
     var meta=[]; if(v.at)meta.push(ago(v.at)); if(v.v)meta.push(fmtViews(v.v)+' vues');
     var acts = inHidden
       ? '<button class="btn primary" data-act="restore" data-id="'+v.id+'">Restaurer</button>'
@@ -280,7 +294,18 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
   }
   $('list').addEventListener('click',function(e){
     var lk=e.target.closest('a.open');
-    if(lk&&S.tab==='todo'&&S.autoSeen){var oid=lk.dataset.id;setTimeout(function(){S.hidden[oid]={r:'seen',t:Date.now()};save('wk_hidden',S.hidden);render()},400);return}
+    if(lk){
+      var oid=lk.dataset.id;
+      var B=window.AndroidBridge, yt='https://www.youtube.com/watch?v='+oid;
+      if(B&&S.openMode==='app'){
+        e.preventDefault();
+        var opened=false;
+        try{opened=B.openIn?B.openIn(S.openApp,yt):false}catch(x){}
+        if(!opened&&B.share){B.share(yt,'Ouvrir avec');toast(S.openApp+' introuvable : menu de partage ouvert')}
+      }else if(B&&S.openMode==='send'&&B.share){e.preventDefault();B.share(yt,'Ouvrir avec')}
+      if(S.tab==='todo'&&S.autoSeen){setTimeout(function(){S.hidden[oid]={r:'seen',t:Date.now()};save('wk_hidden',S.hidden);render()},400)}
+      return;
+    }
     var b=e.target.closest('button[data-act]'); if(!b)return;
     var id=b.dataset.id, a=b.dataset.act;
     if(a==='before'){hideBefore(id);return}
@@ -295,14 +320,15 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
   });
 
   /* ---------- Settings ---------- */
-  function openSheet(){$('key').value=S.key;$('handle').value=S.handle;$('minDur').value=String(S.minDur);$('autoSeen').checked=!!S.autoSeen;$('sheet').hidden=false}
+  function openSheet(){$('key').value=S.key;$('handle').value=S.handle;$('minDur').value=String(S.minDur);$('autoSeen').checked=!!S.autoSeen;$('openMode').value=S.openMode;$('openTpl').value=S.openTpl;$('openApp').value=S.openApp;$('openApp').hidden=S.openMode!=='app';$('openTpl').hidden=S.openMode!=='custom';$('sheet').hidden=false}
   function closeSheet(){$('sheet').hidden=true}
+  $('openMode').onchange=function(){$('openTpl').hidden=$('openMode').value!=='custom';$('openApp').hidden=$('openMode').value!=='app'};
   $('openSettings').onclick=openSheet; $('close').onclick=closeSheet;
   $('sheet').addEventListener('click',function(e){if(e.target===$('sheet'))closeSheet()});
   $('save').onclick=function(){
     var newHandle=$('handle').value.trim()||'@WankilFr', changed=newHandle!==S.handle||$('key').value.trim()!==S.key&&false;
     if(newHandle!==S.handle){S.uploads='';S.videos=[];save('wk_uploads','');save('wk_videos',[])}
-    S.key=$('key').value.trim(); S.handle=newHandle; S.minDur=+$('minDur').value;S.autoSeen=$('autoSeen').checked;save('wk_autoSeen',S.autoSeen);
+    S.key=$('key').value.trim(); S.handle=newHandle; S.minDur=+$('minDur').value;S.autoSeen=$('autoSeen').checked;save('wk_autoSeen',S.autoSeen);S.openMode=$('openMode').value;S.openApp=$('openApp').value.trim()||'ViewTube';save('wk_openApp',S.openApp);S.openTpl=$('openTpl').value.trim()||'https://www.youtube.com/watch?v={id}';save('wk_openMode',S.openMode);save('wk_openTpl',S.openTpl);
     save('wk_key',S.key);save('wk_handle',S.handle);save('wk_minDur',S.minDur);
     closeSheet(); S.shown=PAGE; render(); sync();
   };
@@ -318,21 +344,50 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
       toast(S.videos.length?n+' vidéo'+(n>1?'s':'')+' marquée'+(n>1?'s':'')+' comme vue'+(n>1?'s':''):'Charge d\'abord les vidéos de la chaîne, puis réimporte.');
     });
   };
-  $('export').onclick=function(){
-    if(window.AndroidBridge&&window.AndroidBridge.share){window.AndroidBridge.share(JSON.stringify({hidden:S.hidden},null,1),'banane-radar-masquees.json');return}
-    var blob=new Blob([JSON.stringify({hidden:S.hidden},null,1)],{type:'application/json'});
-    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='banane-radar-masquees.json';
-    document.body.appendChild(a); a.click(); a.remove();
-  };
-  $('importBtn').onclick=function(){$('importFile').click()};
+  /* Export compact : un bit par vidéo de la chaîne (classées de la plus ancienne à la plus récente). */
+  function sortedAsc(){return S.videos.slice().sort(function(a,b){return a.at<b.at?-1:a.at>b.at?1:(a.id<b.id?-1:1)})}
+  function packBits(list,pred){
+    var bytes=[],i;for(i=0;i<Math.ceil(list.length/8);i++)bytes.push(0);
+    for(i=0;i<list.length;i++){if(pred(list[i]))bytes[i>>3]|=1<<(i&7)}
+    return btoa(String.fromCharCode.apply(null,bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function unpackBits(str,n){
+    var b=atob(str.replace(/-/g,'+').replace(/_/g,'/')),out=[];
+    for(var i=0;i<n;i++){out.push(((b.charCodeAt(i>>3)||0)>>(i&7))&1)}
+    return out;
+  }
+  function exportText(){
+    var l=sortedAsc(); if(!l.length)return '';
+    return ['BR1',l.length,l[0].id,l[l.length-1].id,
+      packBits(l,function(v){var h=S.hidden[v.id];return !!h&&h.r!=='skip'}),
+      packBits(l,function(v){var h=S.hidden[v.id];return !!h&&h.r==='skip'})].join('|');
+  }
+  function importCompact(txt){
+    var p=txt.split('|'),n=+p[1],l=sortedAsc();
+    if(p[0]!=='BR1'||!n||p.length<6)throw new Error('format');
+    if(l.length<n||l[0].id!==p[2]||l[n-1].id!==p[3]){toast("La liste de la chaîne est différente : actualise d'abord les vidéos, puis réessaie.");return}
+    var a=unpackBits(p[4],n),b=unpackBits(p[5],n),c=0;
+    for(var i=0;i<n;i++){var id=l[i].id;if(!S.hidden[id]&&(a[i]||b[i])){S.hidden[id]={r:b[i]?'skip':'seen',t:Date.now()};c++}}
+    save('wk_hidden',S.hidden);render();closeSheet();toast(c+' vidéo(s) importée(s)');
+  }
   function importJson(txt){
-    try{var j=JSON.parse(txt), h=j.hidden||{}, n=0;
+    txt=txt.replace(/\s+/g,'');
+    try{
+      if(txt.indexOf('BR1|')===0){importCompact(txt);return}
+      var j=JSON.parse(txt),h=j.hidden||{},n=0;
       Object.keys(h).forEach(function(id){if(!S.hidden[id]){S.hidden[id]=h[id];n++}});
-      save('wk_hidden',S.hidden); render(); closeSheet(); toast(n+' vidéo(s) importée(s)');
+      save('wk_hidden',S.hidden);render();closeSheet();toast(n+' vidéo(s) importée(s)');
     }catch(e){toast('Texte invalide : colle-le en entier')}
   }
+  $('export').onclick=function(){
+    var t=exportText(); if(!t){toast("Charge d'abord les vidéos de la chaîne");return}
+    if(window.AndroidBridge&&window.AndroidBridge.share){window.AndroidBridge.share(t,'Sauvegarde Banane Radar');return}
+    $('importText').value=t;
+    try{navigator.clipboard.writeText(t).then(function(){toast('Texte copié')},function(){toast('Texte placé dans la case ci-dessous')})}catch(e){toast('Texte placé dans la case ci-dessous')}
+  };
+  $('importBtn').onclick=function(){$('importFile').click()};
   $('importFile').onchange=function(){readFile(this,importJson)};
-  $('importTextBtn').onclick=function(){importJson($('importText').value.trim());$('importText').value=''};
+  $('importTextBtn').onclick=function(){importJson($('importText').value);$('importText').value=''};
 
   render();
   if(S.key){sync()}else{setStatus('Ajoute ta clé API dans Réglages pour charger la chaîne.');openSheet()}
